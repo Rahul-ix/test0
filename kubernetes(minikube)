@@ -1,0 +1,176 @@
+Spring Boot REST API on Kubernetes (Minikube)
+🔹 Step 1: Install Tools
+
+Install Minikube (Windows binary):
+
+Download from GitHub releases → minikube-windows-amd64.exe
+
+Rename to minikube.exe
+
+Move to C:\Windows\System32\ (so it’s in PATH).
+
+Verify:
+
+minikube version
+
+
+Install kubectl:
+
+Download latest kubectl.exe from:
+https://dl.k8s.io/release/v1.33.1/bin/windows/amd64/kubectl.exe
+
+Move to C:\Windows\System32\.
+
+Verify:
+
+kubectl version --client
+
+
+Start Minikube:
+
+minikube start --driver=virtualbox
+
+🔹 Step 2: Create Spring Boot REST API (in IntelliJ)
+
+In IntelliJ → Spring Initializr → Choose:
+
+Project: Maven
+
+Language: Java
+
+Dependencies: Spring Web
+
+Create a simple REST controller:
+
+@RestController
+@RequestMapping("/api")
+public class HelloController {
+
+    @GetMapping("/hello")
+    public String hello() {
+        return "Hello from Spring Boot on Kubernetes!";
+    }
+}
+
+
+Build the JAR:
+
+mvn clean package -DskipTests
+
+
+✅ Output: target/testing-0.0.1-SNAPSHOT.jar
+
+🔹 Step 3: Create Dockerfile
+
+In project root, create Dockerfile:
+
+FROM eclipse-temurin:17-jdk-alpine
+WORKDIR /app
+COPY target/testing-0.0.1-SNAPSHOT.jar app.jar
+ENTRYPOINT ["java","-jar","app.jar"]
+
+🔹 Step 4: Build Docker Image inside Minikube
+minikube image build -t testing:1.0 .
+
+
+✅ This loads your image into Minikube’s internal registry.
+
+🔹 Step 5: Create Kubernetes Deployment + Service
+
+Create deployment.yaml:
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: testing-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: testing
+  template:
+    metadata:
+      labels:
+        app: testing
+    spec:
+      containers:
+        - name: testing
+          image: testing:1.0
+          ports:
+            - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: testing-service
+spec:
+  type: NodePort
+  selector:
+    app: testing
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: 30007
+
+
+Apply:
+
+kubectl apply -f deployment.yaml
+
+🔹 Step 6: Verify Deployment
+
+Check pods:
+
+kubectl get pods
+
+
+Check services:
+
+kubectl get svc
+
+
+You should see testing-service with NodePort 30007.
+
+🔹 Step 7: Access API
+
+Get Minikube IP:
+
+minikube ip
+
+
+Example → 192.168.59.101
+
+Open in browser / Postman:
+
+http://192.168.59.101:30007/api/hello
+
+
+✅ Output:
+
+Hello from Spring Boot on Kubernetes!
+
+🔹 Step 8: (Optional) Scale & Dashboard
+
+Scale to 5 replicas:
+
+kubectl scale deployment testing-deployment --replicas=5
+
+
+Open Kubernetes Dashboard UI:
+
+minikube dashboard
+
+
+You’ll see your pods, services, logs, etc. visually.
+
+🎯 Final Result
+
+Spring Boot REST API built in IntelliJ.
+
+Docker image created inside Minikube (no Docker Desktop).
+
+App deployed to Kubernetes with 2 pods & NodePort service.
+
+Accessible at http://<minikube-ip>:30007/api/hello.
+
+Scalable & visible in the Kubernetes Dashboard UI.
